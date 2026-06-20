@@ -15,7 +15,13 @@ function TaskInfoPanel({
     context.onmessage = (message) => {
       switch (message.type) {
         case "row":
-          setText(message.text);
+          if (message.scheduled === "non-task") {
+            setText("Not a task");
+          } else if (message.scheduled === "non-sched") {
+            setText("No scheduled date");
+          } else {
+            setText("Todo");
+          }
           break;
         case "clear":
           setText("");

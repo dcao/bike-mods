@@ -6,41 +6,61 @@ export async function activate(context: AppExtensionContext) {
 
   bike.commands.addCommands({
     commands: {
-      "bike-todo:hello": helloCommand,
+      "bike-todo:schedule": scheduleCommand,
     },
   });
 
-  bike.observeWindows(async (window: Window) => {
-    const taskHandle = await window.inspector.addItem<TaskProtocol>({
-      label: "TaskInfo",
-      script: "TaskInfo.js",
-    });
+  // bike.observeWindows(async (window: Window) => {
+  //   const taskHandle = await window.inspector.addItem<TaskProtocol>({
+  //     label: "TaskInfo",
+  //     script: "TaskInfo.js",
+  //   });
 
-    window.observeCurrentOutlineEditor((editor) => {
-      if (!editor) return;
-      editor.observeSelection((selection) => {
-        if (!selection) {
-          taskHandle.postMessage({ type: "clear" });
-          return;
-        }
+  //   window.observeCurrentOutlineEditor((editor) => {
+  //     if (!editor) return;
+  //     editor.observeSelection((selection) => {
+  //       if (!selection) {
+  //         taskHandle.postMessage({ type: "clear" });
+  //         return;
+  //       }
 
-        // We have a selection.
-        // Next, let's do some computation.
+  //       // We have a row!
+  //       const row = selection.row;
+  //       let scheduled:
+  //         | { allDay: boolean; start: Date; end: Date | null }
+  //         | "non-task"
+  //         | "non-sched";
 
-        taskHandle.postMessage({
-          type: "row",
-          text: selection.row.text.string,
-        });
-      }, 25);
-    });
-  });
+  //       // First, let's check if this is a task.
+  //       if (row.getAttribute("@type") !== "task") {
+  //         scheduled = "non-task";
+  //       } else {
+  //         if (row.getAttribute("@scheduledAllDay") === undefined) {
+  //           scheduled = "non-sched";
+  //         } else {
+  //           scheduled = {
+  //             allDay: !!row.getAttribute("@scheduledAllDay"),
+  //             start: new Date(row.getAttribute("@scheduledStart")),
+  //             end:
+  //               row.getAttribute("@scheduledEnd") !== undefined
+  //                 ? new Date(row.getAttribute("@scheduledEnd"))
+  //                 : null,
+  //           };
+  //         }
+  //       }
+
+  //       taskHandle.postMessage({
+  //         type: "row",
+  //         scheduled,
+  //       });
+  //     }, 300);
+  //   });
+  // });
 }
 
-function helloCommand(context: CommandContext): boolean {
+function scheduleCommand(context: CommandContext): boolean {
   let window = bike.frontmostWindow;
   if (!window) return false;
-
-  let clickCount = 0;
 
   window
     .presentSheet<ScheduleSheetProtocol>("ScheduleSheet.js", {
@@ -52,10 +72,13 @@ function helloCommand(context: CommandContext): boolean {
       handle.onmessage = (message) => {
         switch (message.type) {
           case "set":
-            bike.frontmostOutlineEditor?.selection?.row.setAttribute(
-              "scheduled",
-              message.value,
-            );
+            const r = bike.frontmostOutlineEditor?.selection?.row;
+            if (message.scheduled !== null && r !== undefined) {
+              const s = message.scheduled;
+              r.setAttribute("scheduledAllDay", +s.allDay);
+              r.setAttribute("scheduledStart", s.start.toISOString());
+              if (s.end) r.setAttribute("scheduledEnd", s.end.toISOString());
+            }
             handle.dispose();
             break;
         }

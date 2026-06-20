@@ -12,5 +12,8 @@
   "type": "commonjs",
   "devDependencies": {
     "@bike-outliner/extension-kit": "github:bike-outliner/extension-kit"
+  },
+  "dependencies": {
+    "chrono-node": "^2.9.1"
   }
 }
