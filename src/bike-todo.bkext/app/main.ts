@@ -1,5 +1,25 @@
-import { AppExtensionContext, CommandContext, Window } from "bike/app";
-import { ScheduleSheetProtocol, TaskProtocol } from "../dom/protocols";
+import { AppExtensionContext, CommandContext, Row, Window } from "bike/app";
+import { ScheduleSheetProtocol, Task, TaskProtocol } from "../dom/protocols";
+
+function getTask(row: Row): Task | null {
+  if (row.type !== "task") return null;
+
+  let scheduled;
+  if (row.getAttribute("scheduledAllDay") === undefined) {
+    scheduled = null;
+  } else {
+    const e = row.getAttribute("scheduledEnd");
+
+    scheduled = {
+      query: row.getAttribute("scheduledQuery")!,
+      allDay: !!+row.getAttribute("scheduledAllDay")!,
+      start: new Date(row.getAttribute("scheduledStart")!),
+      end: e !== undefined ? new Date(e) : null,
+    };
+  }
+
+  return { scheduled };
+}
 
 export async function activate(context: AppExtensionContext) {
   console.log("bike-todo activated");
@@ -10,57 +30,42 @@ export async function activate(context: AppExtensionContext) {
     },
   });
 
-  // bike.observeWindows(async (window: Window) => {
-  //   const taskHandle = await window.inspector.addItem<TaskProtocol>({
-  //     label: "TaskInfo",
-  //     script: "TaskInfo.js",
-  //   });
+  bike.observeWindows(async (window: Window) => {
+    const taskHandle = await window.inspector.addItem<TaskProtocol>({
+      label: "TaskInfo",
+      script: "TaskInfo.js",
+    });
 
-  //   window.observeCurrentOutlineEditor((editor) => {
-  //     if (!editor) return;
-  //     editor.observeSelection((selection) => {
-  //       if (!selection) {
-  //         taskHandle.postMessage({ type: "clear" });
-  //         return;
-  //       }
+    window.observeCurrentOutlineEditor((editor) => {
+      if (!editor) return;
+      editor.observeSelection((selection) => {
+        if (!selection) {
+          taskHandle.postMessage({ type: "clear" });
+          return;
+        }
 
-  //       // We have a row!
-  //       const row = selection.row;
-  //       let scheduled:
-  //         | { allDay: boolean; start: Date; end: Date | null }
-  //         | "non-task"
-  //         | "non-sched";
+        // We have a row!
+        const row = selection.row;
 
-  //       // First, let's check if this is a task.
-  //       if (row.getAttribute("@type") !== "task") {
-  //         scheduled = "non-task";
-  //       } else {
-  //         if (row.getAttribute("@scheduledAllDay") === undefined) {
-  //           scheduled = "non-sched";
-  //         } else {
-  //           scheduled = {
-  //             allDay: !!row.getAttribute("@scheduledAllDay"),
-  //             start: new Date(row.getAttribute("@scheduledStart")),
-  //             end:
-  //               row.getAttribute("@scheduledEnd") !== undefined
-  //                 ? new Date(row.getAttribute("@scheduledEnd"))
-  //                 : null,
-  //           };
-  //         }
-  //       }
+        taskHandle.postMessage({
+          type: "row",
+          task: getTask(row),
+        });
+      }, 300);
+    });
 
-  //       taskHandle.postMessage({
-  //         type: "row",
-  //         scheduled,
-  //       });
-  //     }, 300);
-  //   });
-  // });
+    window.inspector.addItem({
+      label: "Agenda",
+      script: "Agenda.js",
+    });
+  });
 }
 
 function scheduleCommand(context: CommandContext): boolean {
   let window = bike.frontmostWindow;
   if (!window) return false;
+
+  const query = context.selection?.row.getAttribute("scheduledQuery") ?? "";
 
   window
     .presentSheet<ScheduleSheetProtocol>("ScheduleSheet.js", {
@@ -68,16 +73,22 @@ function scheduleCommand(context: CommandContext): boolean {
       height: 150,
     })
     .then((handle) => {
-      handle.postMessage({ type: "greeting", name: "World" });
+      handle.postMessage({ type: "start", query: "" });
       handle.onmessage = (message) => {
         switch (message.type) {
           case "set":
             const r = bike.frontmostOutlineEditor?.selection?.row;
             if (message.scheduled !== null && r !== undefined) {
               const s = message.scheduled;
+              r.setAttribute("scheduledQuery", s.query);
               r.setAttribute("scheduledAllDay", +s.allDay);
               r.setAttribute("scheduledStart", s.start.toISOString());
               if (s.end) r.setAttribute("scheduledEnd", s.end.toISOString());
+            } else if (message.query === "" && r !== undefined) {
+              r.removeAttribute("scheduledAllDay");
+              r.removeAttribute("scheduledStart");
+              r.removeAttribute("scheduledEnd");
+              r.removeAttribute("scheduledQuery");
             }
             handle.dispose();
             break;

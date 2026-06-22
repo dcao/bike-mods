@@ -64,7 +64,7 @@ function ScheduleSheet({
         onSubmit={() => {
           // Alright. Let's figure out what we're sending over.
           if (r === null) {
-            context.postMessage({ type: "set", scheduled: null });
+            context.postMessage({ type: "set", query: sch, scheduled: null });
             return;
           }
           const notAllDay =
@@ -72,9 +72,11 @@ function ScheduleSheet({
             (r.end !== null && r.end !== undefined && r.end.isCertain("hour"));
           const start = r.start.date();
           const end = r.end?.date() ?? null;
+
           context.postMessage({
             type: "set",
-            scheduled: { allDay: !notAllDay, start, end },
+            query: sch,
+            scheduled: { allDay: !notAllDay, start, end, query: sch },
           });
         }}
       >
