@@ -110,7 +110,7 @@ const Todos: React.FC = () => {
 
   return (
     <Disclosure
-      label="Todos"
+      label="Agenda"
       accessory={<Label color="secondary">{todos.length}</Label>}
       expanded={expanded}
       onChange={setExpanded}
@@ -120,32 +120,24 @@ const Todos: React.FC = () => {
           {closed ? "Outline closed" : "No unchecked tasks"}
         </Label>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "2em" }}>
-          {Object.entries(grouped).map(([header, todos]) => (
-            <div>
-              <h1 style={{ marginTop: 0 }}>{header}</h1>
-              {todos!
-                .toSorted((a, b) => {
-                  return (
-                    a.scheduled!.start.getTime() - b.scheduled!.start.getTime()
-                  );
-                })
-                .map((todo) => {
-                  let timestr = "";
-
-                  if (!todo.scheduled!.allDay) {
-                    timestr += todo.scheduled!.start.toLocaleTimeString(
-                      undefined,
-                      {
-                        hour: "numeric",
-                        hour12: true,
-                        minute: "2-digit",
-                      },
+        <div style={{ display: "flex", flexDirection: "column", gap: "1em" }}>
+          {Object.entries(grouped)
+            .toSorted((a, b) => a[0].localeCompare(b[0]))
+            .map(([header, todos]) => (
+              <div>
+                <h1 style={{ marginTop: 0 }}>{header}</h1>
+                {todos!
+                  .toSorted((a, b) => {
+                    return (
+                      a.scheduled!.start.getTime() -
+                      b.scheduled!.start.getTime()
                     );
+                  })
+                  .map((todo) => {
+                    let timestr = "";
 
-                    if (todo.scheduled!.end !== null) {
-                      timestr += " – ";
-                      timestr += todo.scheduled!.end.toLocaleTimeString(
+                    if (!todo.scheduled!.allDay) {
+                      timestr += todo.scheduled!.start.toLocaleTimeString(
                         undefined,
                         {
                           hour: "numeric",
@@ -153,62 +145,76 @@ const Todos: React.FC = () => {
                           minute: "2-digit",
                         },
                       );
-                    }
-                  }
 
-                  return (
-                    <div
-                      key={todo.id}
-                      style={{
-                        display: "flex",
-                        gap: "0.4em",
-                      }}
-                    >
-                      <Checkbox
-                        checked={checkedIds.has(todo.id)}
-                        onChange={() => checkOff(todo)}
-                      />
-                      <div style={{ display: "flex", flexDirection: "column" }}>
-                        <span
-                          role="button"
-                          style={{
-                            cursor: "pointer",
-                            minWidth: 0,
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.textDecoration = "underline")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.textDecoration = "none")
-                          }
-                          onClick={() =>
-                            bike.session.updateEditor({ select: todo.id })
-                          }
+                      if (todo.scheduled!.end !== null) {
+                        timestr += " – ";
+                        timestr += todo.scheduled!.end.toLocaleTimeString(
+                          undefined,
+                          {
+                            hour: "numeric",
+                            hour12: true,
+                            minute: "2-digit",
+                          },
+                        );
+                      }
+                    }
+
+                    return (
+                      <div
+                        key={todo.id}
+                        style={{
+                          display: "flex",
+                          gap: "0.4em",
+                        }}
+                      >
+                        <Checkbox
+                          checked={checkedIds.has(todo.id)}
+                          onChange={() => checkOff(todo)}
+                        />
+                        <div
+                          style={{ display: "flex", flexDirection: "column" }}
                         >
-                          {todo.text || "Untitled task"}
-                        </span>
-                        <span
-                          style={{
-                            cursor: "pointer",
-                            minWidth: 0,
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            flexShrink: "0",
-                            opacity: "50%",
-                          }}
-                        >
-                          {timestr}
-                        </span>
+                          <span
+                            role="button"
+                            style={{
+                              cursor: "pointer",
+                              minWidth: 0,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.textDecoration =
+                                "underline")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.textDecoration = "none")
+                            }
+                            onClick={() =>
+                              bike.session.updateEditor({ select: todo.id })
+                            }
+                          >
+                            {todo.text || "Untitled task"}
+                          </span>
+                          <span
+                            style={{
+                              cursor: "pointer",
+                              minWidth: 0,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              flexShrink: "0",
+                              opacity: "50%",
+                            }}
+                          >
+                            {timestr}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-            </div>
-          ))}
+                    );
+                  })}
+              </div>
+            ))}
         </div>
       )}
     </Disclosure>

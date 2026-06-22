@@ -141,8 +141,11 @@ mod.layer("base", (row, run, caret, viewport, include) => {
         o.allDay = !!poss;
         const oo = o as ObjProper;
 
-        mark.contents.image = Image.fromText(new Text(render(oo)));
+        const i = Image.fromText(new Text(render(oo)));
+        row.text.margin.right = i.resolve(context).width;
         mark.contents.gravity = "right";
+        mark.contents.image = i;
+        mark.y = layout.firstLine.centerY;
       });
     });
   }

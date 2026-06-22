@@ -8,7 +8,7 @@ import {
   SegmentedControl,
 } from "bike/components";
 import { createRoot } from "react-dom/client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScheduleSheetProtocol } from "./protocols";
 import * as chrono from "chrono-node";
 
@@ -22,6 +22,17 @@ function ScheduleSheet({
   context: DOMExtensionContext<ScheduleSheetProtocol>;
 }) {
   const [sch, setSch] = useState("");
+
+  useEffect(() => {
+    context.onmessage = (message) => {
+      switch (message.type) {
+        case "start":
+          setSch(message.query);
+          break;
+      }
+    };
+  });
+
   const r = useMemo(() => {
     const p = chrono.parse(sch);
     return p.length === 0 ? null : p[0];

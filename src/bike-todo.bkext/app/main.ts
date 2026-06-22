@@ -73,7 +73,7 @@ function scheduleCommand(context: CommandContext): boolean {
       height: 150,
     })
     .then((handle) => {
-      handle.postMessage({ type: "start", query: "" });
+      handle.postMessage({ type: "start", query });
       handle.onmessage = (message) => {
         switch (message.type) {
           case "set":
@@ -85,10 +85,10 @@ function scheduleCommand(context: CommandContext): boolean {
               r.setAttribute("scheduledStart", s.start.toISOString());
               if (s.end) r.setAttribute("scheduledEnd", s.end.toISOString());
             } else if (message.query === "" && r !== undefined) {
+              r.removeAttribute("scheduledQuery");
               r.removeAttribute("scheduledAllDay");
               r.removeAttribute("scheduledStart");
               r.removeAttribute("scheduledEnd");
-              r.removeAttribute("scheduledQuery");
             }
             handle.dispose();
             break;
