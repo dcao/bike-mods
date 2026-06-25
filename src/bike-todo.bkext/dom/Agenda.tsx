@@ -2,7 +2,8 @@ import { DOMExtensionContext } from "bike/dom";
 import { Checkbox, Disclosure, Label } from "bike/components";
 import { createRoot } from "react-dom/client";
 import { useEffect, useMemo, useState } from "react";
-import { Task } from "./protocols";
+import { makeUTCLocal, Task } from "./protocols";
+import { RRule } from "rrule";
 
 export async function activate(context: DOMExtensionContext) {
   createRoot(context.element).render(<Todos />);
@@ -28,9 +29,11 @@ function collectTodos(snapshot: SessionOutline | null): Todo[] {
 
         scheduled = {
           query: as["scheduledQuery"],
+          tz: as["scheduledTZ"] ?? null,
           allDay: !!+as["scheduledAllDay"]!,
           start: new Date(as["scheduledStart"]!),
           end: e !== undefined ? new Date(e) : null,
+          recur: as["scheduledRecur"] ?? null,
         };
       }
 
@@ -94,17 +97,27 @@ const Todos: React.FC = () => {
   const checkOff = (todo: Todo) => {
     setCheckedIds((prev) => new Set(prev).add(todo.id));
     bike.session.evaluateCommands({
-      ids: ["row:toggle-done"],
+      ids: ["bike-todo:toggle-done"],
       rows: [todo.id],
     });
   };
 
   const grouped = useMemo(() => {
     return Object.groupBy(todos, ({ scheduled }) => {
-      return scheduled!.start.toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-      });
+      const refDate = !scheduled!.allDay
+        ? scheduled!.start
+        : makeUTCLocal(scheduled!.start);
+      let res = "";
+      res += refDate.getMonth().toString().padStart(2, "0");
+      res += refDate.getDate().toString().padStart(2, "0");
+
+      return (
+        res +
+        refDate.toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        })
+      );
     });
   }, [todos]);
 
@@ -120,12 +133,18 @@ const Todos: React.FC = () => {
           {closed ? "Outline closed" : "No unchecked tasks"}
         </Label>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1em" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "1em",
+          }}
+        >
           {Object.entries(grouped)
             .toSorted((a, b) => a[0].localeCompare(b[0]))
             .map(([header, todos]) => (
               <div>
-                <h1 style={{ marginTop: 0 }}>{header}</h1>
+                <h1 style={{ marginTop: 0 }}>{header.slice(4)}</h1>
                 {todos!
                   .toSorted((a, b) => {
                     return (
@@ -159,12 +178,21 @@ const Todos: React.FC = () => {
                       }
                     }
 
+                    let recurstr = "";
+
+                    if (todo.scheduled!.recur !== null) {
+                      recurstr = RRule.fromString(
+                        todo.scheduled!.recur!,
+                      ).toText();
+                    }
+
                     return (
                       <div
                         key={todo.id}
                         style={{
                           display: "flex",
                           gap: "0.4em",
+                          marginBottom: "0.4em",
                         }}
                       >
                         <Checkbox
@@ -208,6 +236,19 @@ const Todos: React.FC = () => {
                             }}
                           >
                             {timestr}
+                          </span>
+                          <span
+                            style={{
+                              cursor: "pointer",
+                              minWidth: 0,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              flexShrink: "0",
+                              opacity: "50%",
+                            }}
+                          >
+                            {recurstr}
                           </span>
                         </div>
                       </div>
