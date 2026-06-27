@@ -20,6 +20,7 @@ export interface ScheduleSheetProtocol extends DOMProtocol {
     type: "start";
     query: string;
     recur: string;
+    tz: string;
   };
   toApp:
     | { type: "ready" }
@@ -46,14 +47,33 @@ export function normalizeDateToAllDay(d: Date): Date {
   return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
 }
 
-export function makeUTCLocal(d: Date): Date {
+export function makeUTCLocal(d: Date, o: number = d.getTimezoneOffset()): Date {
   // If we have a date xx:yy UTC and we want to make it xx:yy local, we add back our timezone offset.
-  const o = d.getTimezoneOffset();
   return new Date(d.getTime() + o * 60000);
 }
 
-export function makeLocalUTC(d: Date): Date {
+export function makeLocalUTC(d: Date, o: number = d.getTimezoneOffset()): Date {
   // If we have a date xx:yy local and we want to make it xx:yy UTC, we add back our timezone offset.
-  const o = d.getTimezoneOffset();
   return new Date(d.getTime() - o * 60000);
+}
+
+export function getOffset(timeZone: string) {
+  const timeZoneName = Intl.DateTimeFormat("ia", {
+    timeZoneName: "short",
+    timeZone,
+  })
+    .formatToParts()
+    .find((i) => i.type === "timeZoneName")!.value;
+  const offset = timeZoneName.slice(3);
+  if (!offset) return 0;
+
+  const matchData = offset.match(/([+-])(\d+)(?::(\d+))?/);
+  if (!matchData) throw `cannot parse timezone name: ${timeZoneName}`;
+
+  const [, sign, hour, minute] = matchData;
+  let result = parseInt(hour) * 60;
+  if (sign === "+") result *= -1;
+  if (minute) result += parseInt(minute);
+
+  return result;
 }

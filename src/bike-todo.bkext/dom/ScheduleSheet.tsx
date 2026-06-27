@@ -10,6 +10,7 @@ import {
 import { createRoot } from "react-dom/client";
 import { useEffect, useMemo, useState } from "react";
 import {
+  getOffset,
   makeLocalUTC,
   makeUTCLocal,
   normalizeDateToAllDay,
@@ -32,6 +33,15 @@ const isEmpty = (o: object) => {
   return true;
 };
 
+function isValidTimeZone(tz: string) {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return true;
+  } catch (ex) {
+    return false;
+  }
+}
+
 function ScheduleSheet({
   context,
 }: {
@@ -39,10 +49,18 @@ function ScheduleSheet({
 }) {
   const [sch, setSch] = useState("");
   const [rr, setRr] = useState("");
+  const [tzTxt, setTzTxt] = useState("");
 
-  const tz = useMemo(() => {
+  const localTz = useMemo(() => {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
   }, []);
+  const tz = useMemo(() => {
+    if (isValidTimeZone(tzTxt)) {
+      return tzTxt;
+    } else {
+      return localTz;
+    }
+  }, [tzTxt]);
 
   useEffect(() => {
     context.onmessage = (message) => {
@@ -50,6 +68,7 @@ function ScheduleSheet({
         case "start":
           setSch(message.query);
           setRr(message.recur);
+          setTzTxt(message.tz);
           break;
       }
     };
@@ -58,10 +77,11 @@ function ScheduleSheet({
   }, []);
 
   const r = useMemo(() => {
-    // We set the timezone so that in a future update, we can just make tz a field in the UI that people can change :)
-    const p = chrono.parse(sch, { timezone: tz });
+    // Chrono doesn't understand JavaScript's timezones, so we have to
+    // get creative.
+    const p = chrono.parse(sch, { timezone: -getOffset(tz) });
     return p.length === 0 ? null : p[0];
-  }, [sch]);
+  }, [sch, tz]);
 
   const notAllDay =
     r === null
@@ -85,7 +105,7 @@ function ScheduleSheet({
       } else {
         if (r === null) return null;
         opts.dtstart = notAllDay
-          ? makeLocalUTC(r.date())
+          ? makeLocalUTC(r.date(), getOffset(tz))
           : normalizeDateToAllDay(r.date());
         opts.tzid = tz;
         return new RRule(opts);
@@ -93,7 +113,7 @@ function ScheduleSheet({
     } catch {
       return null;
     }
-  }, [r, rr]);
+  }, [r, rr, tz]);
 
   let body;
   if (r === null) {
@@ -196,24 +216,44 @@ function ScheduleSheet({
       <div style={{ marginBottom: "2em" }}>{body}</div>
       {r !== null ? (
         <>
-          <input
-            type="text"
-            placeholder="Recurrence rule"
-            style={{
-              font: "inherit",
-              color: "var(--label)",
-              background: "var(--control-background)",
-              border: "0.5px solid var(--container-border)",
-              borderRadius: 4,
-              padding: "6px",
-              marginBottom: "0.5rem",
-              width: "100%",
-              boxSizing: "border-box",
-            }}
-            value={rr}
-            onChange={(e) => setRr(e.target.value)}
-            onKeyDown={submit}
-          />
+          <div style={{ display: "flex", flexDirection: "row", gap: "0.25em" }}>
+            <input
+              type="text"
+              placeholder="Recurrence rule"
+              style={{
+                font: "inherit",
+                color: "var(--label)",
+                background: "var(--control-background)",
+                border: "0.5px solid var(--container-border)",
+                borderRadius: 4,
+                padding: "6px",
+                marginBottom: "0.5rem",
+                width: "60%",
+                boxSizing: "border-box",
+              }}
+              value={rr}
+              onChange={(e) => setRr(e.target.value)}
+              onKeyDown={submit}
+            />
+            <input
+              type="text"
+              placeholder="Timezone"
+              style={{
+                font: "inherit",
+                color: tzTxt !== tz ? "red" : "var(--label)",
+                background: "var(--control-background)",
+                border: "0.5px solid var(--container-border)",
+                borderRadius: 4,
+                padding: "6px",
+                marginBottom: "0.5rem",
+                width: "40%",
+                boxSizing: "border-box",
+              }}
+              value={tzTxt}
+              onChange={(e) => setTzTxt(e.target.value)}
+              onKeyDown={submit}
+            />
+          </div>
           <div style={{ marginBottom: "2em" }}>{rrb}</div>
         </>
       ) : (

@@ -1,5 +1,6 @@
 import { AppExtensionContext, CommandContext, Row, Window } from "bike/app";
 import {
+  getOffset,
   makeLocalUTC,
   makeUTCLocal,
   ScheduleSheetProtocol,
@@ -79,7 +80,10 @@ function toggleDoneCommand(context: CommandContext): boolean {
 
   editor.transaction({ label: "complete tasks" }, () => {
     for (const row of rr.rows) {
-      if (!editor.isFocused(row)) continue;
+      // if (!editor.isFocused(row)) continue;
+      const tz =
+        row.getAttribute("scheduledTZ") ??
+        Intl.DateTimeFormat().resolvedOptions().timeZone;
 
       const d = row.getAttribute("done");
       if (d !== undefined) {
@@ -101,7 +105,7 @@ function toggleDoneCommand(context: CommandContext): boolean {
               : info.scheduled.start;
 
           const rrule = RRule.fromString(info.scheduled.recur);
-          const nn = rrule.after(makeLocalUTC(dtstart));
+          const nn = rrule.after(makeLocalUTC(dtstart, getOffset(tz)));
 
           if (nn === null) {
             // We need to do it here cause otherwise, we'll copy the row with this recur.
@@ -180,6 +184,7 @@ function scheduleCommand(context: CommandContext): boolean {
               query,
               recur:
                 recur !== undefined ? RRule.fromString(recur).toText() : "",
+              tz: rr!.getAttribute("scheduledTZ") ?? "",
             });
             break;
 

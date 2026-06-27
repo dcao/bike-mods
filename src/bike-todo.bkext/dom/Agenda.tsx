@@ -116,6 +116,7 @@ const Todos: React.FC = () => {
         refDate.toLocaleDateString(undefined, {
           month: "short",
           day: "numeric",
+          weekday: "short",
         })
       );
     });
